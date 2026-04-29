@@ -1,0 +1,162 @@
+Design a modern, professional, and highly interactive web application UI for an Information Retrieval (Search Engine) system.
+
+The design must go beyond static UI and create a dynamic, animated, game-like experience that visually explains how the system works from data collection to search results.
+
+The goal is to build a production-level interface that combines clean search UI with an educational animated data journey.
+
+----------------------------------
+
+1. Core Concept
+
+The application has two main experiences:
+
+A. Search Experience (like Google)
+B. Animated "Data Journey" (interactive pipeline simulation)
+
+----------------------------------
+
+2. Home Page (Search UI)
+
+- Centered large search bar with rounded corners
+- Clean minimal design inspired by Google
+- Auto-focus input
+- Search button with hover animation (scale effect)
+- Autocomplete dropdown:
+  - Shows dynamic suggestions
+  - Highlights typed text
+  - Keyboard navigation (up/down/enter)
+  - Smooth fade + slide animation
+- Soft gradient background (light gray to white)
+- Logo/title: "IR Search Engine"
+
+----------------------------------
+
+3. Search Results Page
+
+- Sticky search bar at the top
+- Results displayed as modern cards:
+  - Title (blue, clickable)
+  - URL (small, gray)
+  - Snippet with highlighted query terms
+  - Relevance score (green)
+- Hover effects (shadow + slight scale)
+- Smooth appearance animation (fade + slide)
+- Loading state (skeleton or spinner)
+- Pagination or infinite scroll
+
+----------------------------------
+
+4. Animated Data Journey (MAIN FEATURE)
+
+Create a horizontal, interactive pipeline that behaves like a mini-game or animated explainer.
+
+Pipeline stages:
+Crawler → Processing → Indexing → Ranking → Results
+
+This must NOT be static cards.
+
+----------------------------------
+
+5. Data Flow Animation (CRITICAL)
+
+- Introduce a "data particle" (glowing dot or capsule)
+- The particle moves smoothly across the pipeline from left to right
+- Movement should feel fluid, like a game or video animation
+- Use easing (ease-in-out) for motion
+
+----------------------------------
+
+6. Stage Transformations (VERY IMPORTANT)
+
+Each stage must visually transform the data:
+
+A. Crawler:
+- Animated URLs appearing (e.g., bbc.com/page1, page2)
+- Fetching/loading effect
+- Data particle collects pages
+
+B. Processing:
+- Raw text transforms into tokens
+- Example:
+  "Data mining is powerful" → [data, mining, powerful]
+- Animate splitting and filtering
+
+C. Indexing:
+- Visual inverted index structure
+- Terms mapped to document IDs (key-value style)
+- Animated lines or connections forming
+
+D. Ranking:
+- Animated scoring bars (TF-IDF concept)
+- Bars grow from left to right
+- Show numeric scores (0.92, 0.85, etc.)
+
+E. Results:
+- Final results appear as cards
+- Smooth fade-in animation
+- Title, snippet, and score preview
+
+----------------------------------
+
+7. Pipeline Design
+
+- Horizontal layout with connected stages
+- Animated connecting lines:
+  - Moving gradient OR moving dot
+- Active stage should glow or highlight
+- Previous stages appear completed
+
+----------------------------------
+
+8. Interaction Controls (IMPORTANT)
+
+Add controls like a media player:
+
+- ▶ Play animation
+- ⏸ Pause
+- 🔁 Replay
+- Speed control (0.5x, 1x, 2x)
+
+Animation can auto-play but should be controllable.
+
+----------------------------------
+
+9. UX & Motion Design
+
+- Smooth transitions (300–800ms)
+- Micro-interactions:
+  - Button hover scale
+  - Input focus glow
+  - Card hover elevation
+- Scroll-triggered animations for sections
+- The experience should feel like a guided story
+
+----------------------------------
+
+10. Visual Style
+
+- Clean, minimal, modern (inspired by Google and SaaS dashboards)
+- Primary color: blue (#2563eb)
+- Background: light gray / soft gradient
+- Cards: white, rounded (2xl), soft shadows
+- Subtle glow effects for data particle
+- Clear visual hierarchy and spacing
+
+----------------------------------
+
+11. Technical Output (Optional)
+
+If supported, generate:
+- React + Tailwind UI
+OR
+- Clean HTML, CSS, and JavaScript
+
+----------------------------------
+
+12. Final Goal
+
+The design should:
+- Feel like an interactive animation or mini-game
+- Visually teach how information retrieval works
+- Combine beauty, clarity, and motion
+- Look like a real production-level product, not a student project

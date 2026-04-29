@@ -1,0 +1,190 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: QueryFlow Search Engine API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: search
+    description: Search operations
+  - name: crawl
+    description: Crawler operations
+  - name: index
+    description: Index operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /search:
+    get:
+      operationId: search
+      tags: [search]
+      summary: Search documents
+      description: Search for documents using the query with TF-IDF ranking and wildcard support
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Search query
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: Number of results to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+        "400":
+          description: Bad request
+        "500":
+          description: Internal server error
+  /crawl/start:
+    post:
+      operationId: startCrawler
+      tags: [crawl]
+      summary: Start Wikipedia crawler
+      description: Start the Wikipedia crawler to fetch and index documents
+      responses:
+        "200":
+          description: Crawler response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrawlResponse"
+        "500":
+          description: Internal server error
+  /stats:
+    get:
+      operationId: getStats
+      tags: [search]
+      summary: Get statistics
+      description: Get statistics about the indexed documents
+      responses:
+        "200":
+          description: Statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+        "500":
+          description: Internal server error
+  /index/rebuild:
+    post:
+      operationId: rebuildIndex
+      tags: [index]
+      summary: Rebuild inverted index
+      description: Rebuild the inverted index from existing documents
+      responses:
+        "200":
+          description: Rebuild response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RebuildResponse"
+        "500":
+          description: Internal server error
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    SearchResult:
+      type: object
+      properties:
+        doc_id:
+          type: integer
+        title:
+          type: string
+        url:
+          type: string
+          nullable: true
+        score:
+          type: number
+          format: float
+        snippet:
+          type: string
+          nullable: true
+        highlighted_snippet:
+          type: string
+          nullable: true
+      required:
+        - doc_id
+        - title
+        - score
+    CrawlResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        documents_crawled:
+          type: integer
+          nullable: true
+        message:
+          type: string
+          nullable: true
+      required:
+        - status
+    Stats:
+      type: object
+      properties:
+        total_documents:
+          type: integer
+        total_terms:
+          type: integer
+        max_documents:
+          type: integer
+      required:
+        - total_documents
+        - total_terms
+        - max_documents
+    RebuildResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+      required:
+        - status
+        - message
+

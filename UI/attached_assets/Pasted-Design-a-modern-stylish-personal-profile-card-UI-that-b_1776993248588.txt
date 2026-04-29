@@ -1,0 +1,101 @@
+Design a modern, stylish personal profile card UI that behaves like an embedded component (similar to an iframe or widget) that can be reused and dynamically loaded inside a container.
+
+The design should look like a standalone mini-app inside a card.
+
+----------------------------------
+
+1. Core Concept
+
+- The profile card should feel like an embedded module or widget
+- It should be self-contained and visually separated from the page
+- Think of it as a mini "app inside a card"
+
+----------------------------------
+
+2. Card Layout
+
+- Vertical card centered inside a container
+- Fixed width (300–400px)
+- Rounded corners (large radius)
+- Soft shadow for depth
+- Glassmorphism effect (blur + transparency)
+
+----------------------------------
+
+3. Background
+
+- Dark gradient (blue → purple)
+- Soft glow lighting effect
+- Subtle animated gradient background
+
+----------------------------------
+
+4. Profile Image
+
+- Circular avatar at the top center
+- Glowing ring around the avatar (blue/purple neon glow)
+- Soft blurred halo behind the image
+
+----------------------------------
+
+5. Name & Role
+
+- Bold white name text
+- Example: "Mostafa Zahran"
+- Below it: pill-shaped badge:
+  "Full Stack Developer"
+- Badge style:
+  - light background
+  - blue text
+  - rounded
+
+----------------------------------
+
+6. Description
+
+- Short centered paragraph
+- Light gray text
+- Clean spacing and readability
+
+----------------------------------
+
+7. Embedded Widget Feel (IMPORTANT)
+
+- Add subtle border or outline to simulate iframe/widget
+- Slight inner shadow to give depth
+- Optional header bar like a mini window
+- The card should feel isolated like a component loaded dynamically
+
+----------------------------------
+
+8. Interactions
+
+- Smooth hover animation:
+  - scale up slightly
+  - increase glow
+- Subtle floating animation (very light up/down movement)
+- Avatar glow animation (pulse effect)
+
+----------------------------------
+
+9. Optional Features
+
+- Social icons (GitHub, LinkedIn)
+- Action buttons (Follow / Contact)
+- Animated gradient border
+- Switch between multiple profiles (like loading new iframe content)
+
+----------------------------------
+
+10. Technical Output
+
+Generate using:
+- HTML + CSS (Tailwind preferred)
+OR
+- React + Tailwind component
+
+----------------------------------
+
+11. Goal
+
+Create a premium, reusable profile card that looks like an embedded widget or iframe-like component, with modern UI, glow effects, and smooth animations.

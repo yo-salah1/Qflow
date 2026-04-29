@@ -1,0 +1,89 @@
+Design a modern, stylish personal profile card UI with a clean and professional look.
+
+The card should have a centered layout with a soft shadow and rounded corners.
+
+----------------------------------
+
+1. Card Layout
+
+- A vertical card centered on the page
+- Rounded corners (large radius)
+- Soft shadow for depth
+- Slight glass / blur effect (glassmorphism feel)
+
+----------------------------------
+
+2. Background
+
+- Dark gradient background (blue to purple tones)
+- Subtle glow effect behind the profile image
+- Smooth lighting effect (soft radial gradient)
+
+----------------------------------
+
+3. Profile Image
+
+- Circular avatar at the top center
+- Add glowing ring around the avatar (blue/purple glow)
+- Slight blur/light effect behind it for depth
+
+----------------------------------
+
+4. Name & Title
+
+- Name displayed clearly (bold, white text)
+- Example: "Mostafa Zahran"
+- Under it: a badge or pill-shaped label:
+  "Full Stack Developer"
+- Badge should have soft background (light color with blue text)
+
+----------------------------------
+
+5. Description
+
+- Short paragraph under the title
+- Light gray text
+- Clean readable font
+- Center aligned
+
+----------------------------------
+
+6. Style & Typography
+
+- Modern sans-serif font
+- Clean spacing and alignment
+- White and light gray text on dark background
+- Consistent padding
+
+----------------------------------
+
+7. Effects & Details
+
+- Smooth hover animation:
+  - Card slightly scales up
+  - Glow becomes stronger
+- Subtle animation on avatar glow (pulse or gradient shift)
+- High-quality UI, similar to modern portfolio cards
+
+----------------------------------
+
+8. Optional Enhancements
+
+- Add icons (code icon for developer)
+- Add social media buttons (GitHub, LinkedIn)
+- Add animated gradient border
+
+----------------------------------
+
+9. Output
+
+Generate the design using:
+- HTML + CSS (preferred with Tailwind)
+OR
+- React + Tailwind
+
+----------------------------------
+
+Goal:
+
+Create a premium, modern developer profile card that looks like a real portfolio component, not a basic UI.
