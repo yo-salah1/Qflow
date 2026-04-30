@@ -684,7 +684,76 @@ python scripts/populate_cache.py   # Populate cache
 
 ---
 
-## 📚 API Documentation
+## � Deployment Guide
+
+### Frontend - Vercel
+
+1. **Push code to GitHub**
+   ```bash
+   git push origin main
+   ```
+
+2. **Import project in Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Add New Project"
+   - Import your GitHub repository
+   - Set root directory to: `UI/artifacts/ir-search`
+
+3. **Configure environment variables**
+   - `VITE_API_URL`: Your Railway backend URL (e.g., `https://qflow-api.up.railway.app`)
+
+4. **Deploy**
+   - Vercel will auto-detect the Vite project and build it
+   - Your frontend will be live at `https://your-project.vercel.app`
+
+### Backend - Railway
+
+1. **Push code to GitHub**
+   ```bash
+   git push origin main
+   ```
+
+2. **Create project in Railway**
+   - Go to [railway.app](https://railway.app)
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your repository
+   - **Important**: In the service settings, set **Root Directory** to: `API`
+   - This tells Railway that the Python app is in the `API/` subdirectory
+
+3. **Configure environment variables**
+   - `SUPABASE_URL`: Your Supabase project URL
+   - `SUPABASE_KEY`: Your Supabase service role key
+   - `PORT`: Railway will set this automatically
+
+4. **Add PostgreSQL database (optional)**
+   - Railway provides PostgreSQL if not using Supabase
+   - Or continue using Supabase as configured
+
+5. **Deploy**
+   - Railway will detect Python from `API/requirements.txt`
+   - Your API will be live at `https://qflow-api.up.railway.app`
+
+### Post-Deployment Setup
+
+1. **Update CORS origins** (optional but recommended)
+   - In `API/app/main.py`, update `allow_origins` to your Vercel domain
+   - Example: `allow_origins=["https://your-project.vercel.app"]`
+
+2. **Initial data population**
+   - Use Railway CLI or dashboard console to run:
+   ```bash
+   python scripts/run_crawler.py
+   python scripts/populate_cache.py
+   ```
+
+3. **Verify deployment**
+   - Test API: `https://your-api.railway.app/docs`
+   - Test frontend search functionality
+
+---
+
+## �� API Documentation
 
 ### Interactive API Documentation
 
