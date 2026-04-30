@@ -686,6 +686,34 @@ python scripts/populate_cache.py   # Populate cache
 
 ## 📚 API Documentation
 
+### Interactive API Documentation
+
+FastAPI provides automatic interactive API documentation powered by Swagger UI and ReDoc.
+
+#### Accessing API Docs
+
+Once the backend server is running, you can access the interactive documentation at:
+
+- **Swagger UI**: `http://localhost:8000/docs`
+  - Interactive API explorer
+  - Test endpoints directly from the browser
+  - View request/response schemas
+  - Try out API calls with parameters
+
+- **ReDoc**: `http://localhost:8000/redoc`
+  - Clean, documentation-focused view
+  - Detailed endpoint descriptions
+  - Schema definitions
+  - Better for reading and reference
+
+#### Screenshots
+
+The Swagger UI provides a professional interface to explore and test all API endpoints:
+
+![API Documentation - Swagger UI](Image/APIDocs.png)
+
+*Screenshot: Interactive API documentation showing all available endpoints with "Try it out" functionality*
+
 ### API Endpoints
 
 | Method | Endpoint | Description |
