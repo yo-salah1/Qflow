@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { SearchBar } from "@/components/search-bar";
 import { Footer } from "@/components/footer";
-import { Database, Search, Sparkles, Zap } from "lucide-react";
+import { ArrowUpRight, Database, Search, Sparkles, Zap } from "lucide-react";
 
 export default function Home() {
   return (
@@ -10,7 +10,7 @@ export default function Home() {
       {/* Abstract Background Elements */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -z-10 pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-400/5 rounded-full blur-[80px] -z-10 pointer-events-none" />
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -51,37 +51,46 @@ export default function Home() {
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             Curious how it works under the hood?
           </p>
-          <Link 
-            href="/journey" 
-            className="group flex items-center gap-2 px-6 py-3 bg-card hover:bg-muted border rounded-full shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 text-sm font-semibold"
-          >
-            <Sparkles className="w-4 h-4 text-primary group-hover:animate-pulse" />
-            Take the Data Journey
-            <span className="text-primary ml-1 group-hover:translate-x-1 transition-transform">→</span>
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <Link
+              href="/journey"
+              className="group flex items-center gap-2 px-6 py-3 bg-card hover:bg-muted border rounded-full shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 text-sm font-semibold"
+            >
+              <Sparkles className="w-4 h-4 text-primary group-hover:animate-pulse" />
+              Take the Data Journey
+              <span className="text-primary ml-1 group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+            <Link
+              href="/dashboard"
+              className="group flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-full shadow-sm hover:bg-primary/90 transition-all text-sm font-semibold"
+            >
+              <ArrowUpRight className="w-4 h-4" />
+              Top Search Keywords
+            </Link>
+          </div>
         </motion.div>
       </motion.div>
       {/* Features grid */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1, duration: 0.8 }}
         className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 mb-16 px-4"
       >
-        <FeatureCard 
-          icon={Database} 
-          title="Inverted Index" 
-          desc="See how text is tokenized and stored for O(1) lookup speeds." 
+        <FeatureCard
+          icon={Database}
+          title="Inverted Index"
+          desc="See how text is tokenized and stored for O(1) lookup speeds."
         />
-        <FeatureCard 
-          icon={Zap} 
-          title="TF-IDF Ranking" 
-          desc="Understand how term frequency and inverse document frequency calculate relevance." 
+        <FeatureCard
+          icon={Zap}
+          title="TF-IDF Ranking"
+          desc="Understand how term frequency and inverse document frequency calculate relevance."
         />
-        <FeatureCard 
-          icon={Search} 
-          title="Real-time Search" 
-          desc="Experience a mock corpus search running entirely in your browser." 
+        <FeatureCard
+          icon={Search}
+          title="Real-time Search"
+          desc="Experience a mock corpus search running entirely in your browser."
         />
       </motion.div>
       <Footer />

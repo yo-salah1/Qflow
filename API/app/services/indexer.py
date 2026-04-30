@@ -9,6 +9,7 @@ import nltk
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from app.db.supabase_client import supabase_client
+from app.services.semantic_search import semantic_search_service
 
 # Path for local index file
 INDEX_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'index.pkl')
@@ -133,6 +134,7 @@ class Indexer:
         self.preprocessor = TextPreprocessor()
         self.inverted_index: Dict[str, Dict[int, List[int]]] = defaultdict(lambda: defaultdict(list))
         self.document_lengths: Dict[int, int] = {}
+        self.documents: List[Dict] = []  # Store documents for embedding generation
     
     def build_index_for_document(self, doc_id: int, content: str) -> Dict[str, Dict[int, List[int]]]:
         """
@@ -175,6 +177,9 @@ class Indexer:
             Number of documents indexed
         """
         logger.info(f"Building index for {len(documents)} documents")
+        
+        # Store documents for embedding generation
+        self.documents = documents
         
         for doc in documents:
             doc_id = doc['id']
@@ -229,7 +234,34 @@ class Indexer:
                 logger.info(f"Inserted final batch: {total_inserted} entries")
         
         logger.info(f"Index saved to database. Total entries: {total_inserted}")
+        
+        # Generate and save embeddings for semantic search
+        self._generate_and_save_embeddings()
+        
         return total_inserted > 0
+    
+    def _generate_and_save_embeddings(self) -> None:
+        """Generate and save embeddings for all documents."""
+        if not self.documents:
+            logger.warning("No documents to generate embeddings for")
+            return
+        
+        logger.info(f"Generating embeddings for {len(self.documents)} documents")
+        
+        for doc in self.documents:
+            doc_id = doc['id']
+            title = doc.get('title', '')
+            content = doc.get('content', '')
+            text = f"{title} {content}"
+            
+            try:
+                embedding = semantic_search_service.encode_text(text)
+                supabase_client.insert_document_embedding(doc_id, embedding)
+                logger.debug(f"Generated embedding for doc {doc_id}")
+            except Exception as e:
+                logger.error(f"Failed to generate embedding for doc {doc_id}: {e}")
+        
+        logger.info("Embeddings generation completed")
     
     def load_index_from_database(self) -> bool:
         """

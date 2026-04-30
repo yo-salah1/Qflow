@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 import logging
-from app.models.schemas import HealthResponse, SearchResponse, CrawlResponse, SearchResult
+from app.models.schemas import HealthResponse, SearchResponse, CrawlResponse, SearchResult, SearchKeywordStat, EnhancedSearchResponse
 from app.services.search import search_service
 from app.services.hybrid_search import hybrid_search_service
+from app.services.semantic_search import semantic_search_service
 from app.services.crawler import wikipedia_crawler
 from app.services.indexer import indexer
 from app.db.supabase_client import supabase_client
@@ -44,6 +45,7 @@ async def search(
         if not q or not q.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
+        supabase_client.log_search_query(q)
         results = search_service.search(query=q, limit=limit, offset=offset)
         return results
         
@@ -52,28 +54,68 @@ async def search(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.get("/search-hybrid", response_model=List[SearchResult])
+@router.get("/search-hybrid", response_model=EnhancedSearchResponse)
 async def hybrid_search(
     q: str = Query(..., min_length=1, description="Search query"),
     limit: int = Query(default=10, ge=1, le=settings.MAX_SEARCH_LIMIT, description="Number of results"),
     offset: int = Query(default=0, ge=0, description="Pagination offset")
 ):
     """
-    Hybrid search: checks document cache first, falls back to database if needed.
+    Enhanced hybrid search with semantic fallback.
     
-    This endpoint is faster for frequently searched terms as it searches
-    within the local cache first before querying the database.
+    Search pipeline:
+    1. Cache search (fastest, ~10-50ms)
+    2. Database/TF-IDF search (~100-300ms)
+    3. Semantic search - understands meaning (e.g. "AI" finds "Artificial Intelligence")
     """
     try:
         if not q or not q.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-        results = hybrid_search_service.hybrid_search(query=q, limit=limit, offset=offset)
-        return results
+        supabase_client.log_search_query(q)
+        response = hybrid_search_service.hybrid_search(query=q, limit=limit, offset=offset)
+        return response
         
     except Exception as e:
         logger.error(f"Hybrid search error: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.get("/search-semantic", response_model=List[SearchResult])
+async def semantic_search(
+    q: str = Query(..., min_length=1, description="Search query"),
+    limit: int = Query(default=10, ge=1, le=settings.MAX_SEARCH_LIMIT, description="Number of results")
+):
+    """
+    Semantic search: uses embeddings to understand meaning and find conceptually similar content.
+    
+    Unlike exact match search, this can find documents about "AI" when searching for "Artificial Intelligence"
+    by understanding semantic relationships between words.
+    """
+    try:
+        if not q or not q.strip():
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        supabase_client.log_search_query(q)
+        results = semantic_search_service.semantic_search(query=q, limit=limit)
+        return results
+        
+    except Exception as e:
+        logger.error(f"Semantic search error: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.get("/search-keywords/top", response_model=List[SearchKeywordStat])
+async def get_top_search_keywords(
+    limit: int = Query(default=10, ge=1, le=50, description="Number of top queries to return")
+):
+    """Return the most searched keywords."""
+    try:
+        top_queries = supabase_client.get_top_search_queries(limit=limit)
+        return top_queries
+    except Exception as e:
+        logger.error(f"Top search keywords error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve top search keywords")
 
 
 @router.post("/crawl/start", response_model=CrawlResponse)

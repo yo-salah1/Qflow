@@ -8,6 +8,8 @@
 
 A production-ready, full-stack search engine with **TF-IDF ranking**, **hybrid search capabilities**, and **Wikipedia integration**. Built with modern technologies for optimal performance and scalability.
 
+**Authors:** [Yousif Salah](https://www.linkedin.com/in/yousif-salah/), مصطفى, سعيد
+
 ---
 
 ## 📋 Table of Contents
@@ -75,6 +77,10 @@ QueryFlow is a production-ready search engine that combines:
 ✅ **TF-IDF Ranking** - Mathematical relevance scoring (0.0 to 1.0)  
 ✅ **Document Cache** - JSON-based local cache for 1,500 documents (10-50ms response)  
 ✅ **Hybrid Search** - Cache-first strategy, database fallback only when needed  
+✅ **Semantic Search** - Meaning-based search using embeddings (finds "AI" when searching "Artificial Intelligence")  
+✅ **Exact Match Search** - Precise keyword matching for exact terms only  
+✅ **Top Search Keywords Dashboard** - Trending queries powered by `search_logs` table  
+✅ **Search Logging** - Records each query for analytics and trend detection  
 ✅ **Wikipedia URLs** - Direct links to original articles  
 ✅ **Wildcard Search** - Support for prefix/suffix patterns (e.g., "comput*")  
 ✅ **Responsive UI** - Modern React frontend with Tailwind CSS  
@@ -259,6 +265,30 @@ Check Cache (document_cache.json)
 
 ---
 
+## 🗄️ Database Schema
+
+### `documents`
+- Stores crawled documents from Wikipedia
+- Fields: `id`, `title`, `content`, `url`, `created_at`
+
+### `inverted_index`
+- Stores term-to-document mappings used by TF-IDF and hybrid search
+- Fields: `id`, `term`, `doc_id`, `frequency`, `positions`
+
+### `document_embeddings`
+- Stores vector embeddings for semantic search
+- Fields: `id`, `doc_id`, `embedding` (VECTOR), `created_at`
+
+### `search_logs`
+- Stores every user search query for trending and analytics
+- Fields: `id`, `query`, `created_at`
+
+**API**: `GET /api/search-keywords/top?limit=10`
+
+Use this endpoint to power the dashboard at `http://localhost:5173/dashboard` and detect trending searches.
+
+---
+
 ### 6. Frontend (`UI/artifacts/ir-search/`)
 
 **Stack**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
@@ -411,6 +441,8 @@ pie title "Query Processing Distribution"
 | Feature | Description | Benefit |
 |---------|-------------|---------|
 | **Hybrid Search** | Cache-first with database fallback | 10-50ms for common queries, 100-300ms fallback |
+| **Semantic Search** | Embedding-based meaning search | Finds "Artificial Intelligence" when searching "AI" |
+| **Exact Match Search** | Precise keyword matching | No spell correction, exact terms only |
 | **TF-IDF Ranking** | Mathematical relevance scoring | Accurate results with 0.0-1.0 confidence scores |
 | **Wildcard Search** | Prefix/suffix pattern matching | Find variations like "comput*" → computer, computing |
 | **Real-time Search** | Instant results as you type | Modern user experience with debouncing |
@@ -660,6 +692,8 @@ python scripts/populate_cache.py   # Populate cache
 | `GET` | `/api/healthz` | Health check |
 | `GET` | `/api/search?q={query}` | Regular search (inverted index) |
 | `GET` | `/api/search-hybrid?q={query}` | Hybrid search (cache → database) |
+| `GET` | `/api/search-semantic?q={query}` | Semantic search (embeddings-based) |
+| `GET` | `/api/search-keywords/top` | Top search keywords dashboard |
 | `POST` | `/api/crawl/start` | Start Wikipedia crawler |
 | `GET` | `/api/stats` | Get document/index statistics |
 | `POST` | `/api/index/rebuild` | Rebuild inverted index |
@@ -669,6 +703,12 @@ python scripts/populate_cache.py   # Populate cache
 ```bash
 # Hybrid search (recommended)
 curl "http://localhost:8000/api/search-hybrid?q=machine%20learning&limit=10"
+
+# Semantic search (finds related concepts)
+curl "http://localhost:8000/api/search-semantic?q=AI&limit=10"
+
+# Top search keywords
+curl "http://localhost:8000/api/search-keywords/top?limit=10"
 
 # Start crawler
 curl -X POST "http://localhost:8000/api/crawl/start"

@@ -1,58 +1,32 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { SearchBar } from "@/components/search-bar";
-import { search, SearchResult, tokenize } from "@/lib/search-engine";
-import { ExternalLink, Sparkles, AlertCircle } from "lucide-react";
-import { Link } from "wouter";
+import { search, SearchResult, EnhancedSearchResponse, tokenize } from "@/lib/search-engine";
+import { ExternalLink, Sparkles, AlertCircle, Brain } from "lucide-react";
+import { Link, useSearch, useLocation } from "wouter";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { cn } from "@/lib/utils";
+
+function useQueryParam(): string {
+  const searchString = useSearch();
+  const params = new URLSearchParams(searchString);
+  return params.get("q") || "";
+}
 
 export default function Results() {
-  const [query, setQuery] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("q") || "";
-  });
+  const query = useQueryParam();
+  const [, setLocation] = useLocation();
 
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [searchMode, setSearchMode] = useState<string>("hybrid");
   const [isLoading, setIsLoading] = useState(true);
-  const queryRef = useRef(query);
-
-  // Update ref when query changes
-  useEffect(() => {
-    queryRef.current = query;
-  }, [query]);
-
-  // Monitor URL changes
-  useEffect(() => {
-    const checkUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      const newQuery = params.get("q") || "";
-      if (newQuery !== queryRef.current) {
-        setQuery(newQuery);
-      }
-    };
-
-    // Check immediately
-    checkUrl();
-
-    // Listen for popstate
-    window.addEventListener('popstate', checkUrl);
-
-    // Poll for URL changes (catches Wouter's setLocation changes)
-    const interval = setInterval(checkUrl, 50);
-
-    return () => {
-      window.removeEventListener('popstate', checkUrl);
-      clearInterval(interval);
-    };
-  }, []);
 
   useEffect(() => {
     const performSearch = async () => {
       setIsLoading(true);
       try {
-        const searchResults = await search(query);
-        setResults(searchResults);
+        const response: EnhancedSearchResponse = await search(query);
+        setResults(response.results);
+        setSearchMode(response.search_mode);
       } catch (error) {
         console.error("Search failed:", error);
         setResults([]);
@@ -93,7 +67,7 @@ export default function Results() {
           <div className="flex-1">
             <SearchBar initialQuery={query} isLoading={isLoading} />
           </div>
-          <Link 
+          <Link
             href={`/journey?q=${encodeURIComponent(query)}`}
             className="hidden md:flex shrink-0 items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-medium transition-colors border border-primary/20"
           >
@@ -104,50 +78,57 @@ export default function Results() {
       </div>
 
       <div className="container mx-auto px-4 max-w-4xl py-8 flex-1">
-        {/* Search Stats */}
+        {/* Search Mode Badge */}
         {!isLoading && results.length > 0 && (
-          <motion.p 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-sm text-muted-foreground mb-6"
+            className="flex items-center gap-3 mb-6"
           >
-            Found {results.length} results for "{query}"
-          </motion.p>
+            <p className="text-sm text-muted-foreground">
+              Found {results.length} results for "{query}"
+            </p>
+            {searchMode === "semantic" && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-semibold border border-purple-200 dark:border-purple-800">
+                <Brain className="w-3 h-3" />
+                Semantic Search
+              </span>
+            )}
+          </motion.div>
         )}
 
         {/* Loading State */}
         {isLoading && (
           <div className="space-y-6">
             {/* Loading Header */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 100, 
+              transition={{
+                type: "spring",
+                stiffness: 100,
                 damping: 15,
-                duration: 0.6 
+                duration: 0.6
               }}
               className="relative overflow-hidden"
             >
               {/* Gradient Background */}
               <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-blue-500/10 to-cyan-500/10 rounded-3xl" />
               <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent rounded-3xl" />
-              
+
               {/* Animated Border */}
               <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary/20 via-blue-500/20 to-cyan-500/20 p-[1px]">
                 <div className="w-full h-full bg-background/95 rounded-3xl backdrop-blur-sm" />
               </div>
-              
+
               {/* Content */}
               <div className="relative flex items-center gap-4 p-6">
-                {/* Enhanced Loading Spinner Container */}
-                <motion.div 
-                  animate={{ 
+                <motion.div
+                  animate={{
                     rotate: 360,
                     scale: [1, 1.1, 1]
                   }}
-                  transition={{ 
+                  transition={{
                     rotate: { duration: 2, repeat: Infinity, ease: "linear" },
                     scale: { duration: 1, repeat: Infinity, ease: "easeInOut" }
                   }}
@@ -156,24 +137,22 @@ export default function Results() {
                   <div className="w-16 h-16 bg-gradient-to-br from-primary to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/25">
                     <LoadingSpinner size="md" />
                   </div>
-                  {/* Pulsing Ring */}
-                  <motion.div 
-                    animate={{ 
+                  <motion.div
+                    animate={{
                       scale: [1, 1.5, 1],
                       opacity: [0.5, 0, 0.5]
                     }}
-                    transition={{ 
-                      duration: 2, 
+                    transition={{
+                      duration: 2,
                       repeat: Infinity,
                       ease: "easeInOut"
                     }}
                     className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-primary to-blue-500 rounded-2xl -z-10"
                   />
                 </motion.div>
-                
-                {/* Enhanced Text Content */}
+
                 <div className="flex-1 space-y-2">
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
@@ -182,7 +161,7 @@ export default function Results() {
                       Searching for "{query}"
                     </p>
                   </motion.div>
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
@@ -192,7 +171,7 @@ export default function Results() {
                       {[0, 1, 2].map((i) => (
                         <motion.div
                           key={i}
-                          animate={{ 
+                          animate={{
                             scale: [1, 1.2, 1],
                             opacity: [0.3, 1, 0.3]
                           }}
@@ -207,12 +186,11 @@ export default function Results() {
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Querying {query.includes(' ') ? 'multiple terms' : 'single term'} across {query.includes(' ') ? 'thousands of' : 'hundreds of'} documents...
+                      Running TF-IDF + Semantic search pipeline...
                     </p>
                   </motion.div>
                 </div>
-                
-                {/* Status Badge */}
+
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -231,9 +209,9 @@ export default function Results() {
                   </div>
                 </motion.div>
               </div>
-              
+
               {/* Progress Bar */}
-              <motion.div 
+              <motion.div
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
                 transition={{ duration: 2, ease: "easeInOut" }}
@@ -244,8 +222,8 @@ export default function Results() {
             {/* Loading Skeletons */}
             <div className="space-y-6">
               {[1, 2, 3, 4].map((i) => (
-                <motion.div 
-                  key={i} 
+                <motion.div
+                  key={i}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.1 }}
@@ -277,9 +255,9 @@ export default function Results() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.4 }}
               >
-                <a 
-                  href={result.url || '#'} 
-                  target="_blank" 
+                <a
+                  href={result.url || '#'}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="block bg-card hover:bg-accent/50 p-6 rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 group"
                 >
@@ -292,12 +270,12 @@ export default function Results() {
                       <span className="font-mono font-medium">{result.score.toFixed(2)}</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3 truncate">
                     <span className="font-medium text-foreground/70">{result.url || 'No URL available'}</span>
                     <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  
+
                   <p className="text-foreground/80 leading-relaxed mb-4">
                     {highlightText(result.snippet || '', query)}
                   </p>
@@ -309,7 +287,7 @@ export default function Results() {
 
         {/* No Results */}
         {!isLoading && results.length === 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center justify-center py-20 text-center"
@@ -319,7 +297,7 @@ export default function Results() {
             </div>
             <h3 className="text-2xl font-bold mb-2">No results found</h3>
             <p className="text-muted-foreground max-w-md">
-              We couldn't find any documents matching your query "{query}". 
+              We couldn't find any documents matching your query "{query}".
               Try searching for "IR", "TF-IDF", or "Google".
             </p>
           </motion.div>

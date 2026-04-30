@@ -1,9 +1,18 @@
 import { useState, useEffect, useRef, KeyboardEvent } from "react";
 import { useLocation } from "wouter";
-import { Search, Sparkles, ArrowRight, X } from "lucide-react";
+import { Search, Sparkles, ArrowRight, X, Mic, Image } from "lucide-react";
 import { getSuggestions } from "@/lib/search-engine";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
+import { createWorker } from 'tesseract.js';
+
+// Extend window interface for Speech Recognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 interface SearchBarProps {
   initialQuery?: string;
@@ -18,7 +27,10 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isListening, setIsListening] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync query state with initialQuery prop when it changes
   useEffect(() => {
@@ -35,7 +47,7 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
   }, []);
 
   useEffect(() => {
-    const fetchSuggestions = async () => {
+    const timer = setTimeout(async () => {
       if (query.trim()) {
         try {
           const result = await getSuggestions(query);
@@ -48,9 +60,9 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
         setSuggestions([]);
       }
       setSelectedIndex(-1);
-    };
+    }, 300);
 
-    fetchSuggestions();
+    return () => clearTimeout(timer);
   }, [query]);
 
   useEffect(() => {
@@ -67,6 +79,64 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
     if (!searchQuery.trim()) return;
     setLocation(`/results?q=${encodeURIComponent(searchQuery)}`);
     setIsFocused(false);
+  };
+
+  const handleVoiceSearch = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Voice search is not supported in this browser.');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQuery(transcript);
+      handleSearch(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const handleImageSearch = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImage(true);
+    try {
+      const worker = await createWorker('eng');
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+
+      if (text.trim()) {
+        setQuery(text.trim());
+        handleSearch(text.trim());
+      } else {
+        alert('No text found in the image.');
+      }
+    } catch (error) {
+      console.error('OCR error:', error);
+      alert('Failed to process the image.');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -101,7 +171,7 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
         )}
       >
         <Search className={cn("text-muted-foreground transition-colors", isFocused && "text-primary", isLarge ? "w-6 h-6 mr-3" : "w-5 h-5 mr-2")} />
-        
+
         <input
           type="text"
           value={query}
@@ -118,22 +188,44 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
           autoComplete="off"
         />
 
-        {query && (
-          <button 
-            onClick={() => {
-              setQuery("");
-              setSuggestions([]);
-              document.querySelector("input")?.focus();
-            }}
-            className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mr-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        {/* Voice Search Button */}
+        <button
+          onClick={handleVoiceSearch}
+          disabled={isListening || isProcessingImage}
+          className={cn(
+            "p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors",
+            isListening && "text-red-500 animate-pulse"
+          )}
+          title="Voice search"
+        >
+          <Mic className={cn("w-4 h-4", isLarge && "w-5 h-5")} />
+        </button>
+
+        {/* Image Search Button */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isListening || isProcessingImage}
+          className={cn(
+            "p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors",
+            isProcessingImage && "text-blue-500 animate-pulse"
+          )}
+          title="Search with image"
+        >
+          <Image className={cn("w-4 h-4", isLarge && "w-5 h-5")} />
+        </button>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageSearch}
+          className="hidden"
+        />
 
         <button
           onClick={() => handleSearch(query)}
-          disabled={isLoading}
+          disabled={isLoading || isListening || isProcessingImage}
           className={cn(
             "rounded-xl bg-primary text-primary-foreground font-medium flex items-center justify-center transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100",
             isLarge ? "h-10 px-6 ml-2" : "h-8 px-4 ml-1"
@@ -150,30 +242,32 @@ export function SearchBar({ initialQuery = "", size = "default", autoFocus = fal
         </button>
       </div>
 
-      {isFocused && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
-          <ul className="py-2">
-            {suggestions.map((suggestion, index) => (
-              <li key={index}>
-                <button
-                  className={cn(
-                    "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors",
-                    selectedIndex === index ? "bg-muted/80 text-primary" : "hover:bg-muted/50"
-                  )}
-                  onClick={() => {
-                    setQuery(suggestion);
-                    handleSearch(suggestion);
-                  }}
-                >
-                  <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="flex-1 truncate">{suggestion}</span>
-                  {selectedIndex === index && <ArrowRight className="w-4 h-4 text-primary shrink-0" />}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+      {
+        isFocused && suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-card border rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+            <ul className="py-2">
+              {suggestions.map((suggestion, index) => (
+                <li key={index}>
+                  <button
+                    className={cn(
+                      "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors",
+                      selectedIndex === index ? "bg-muted/80 text-primary" : "hover:bg-muted/50"
+                    )}
+                    onClick={() => {
+                      setQuery(suggestion);
+                      handleSearch(suggestion);
+                    }}
+                  >
+                    <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="flex-1 truncate">{suggestion}</span>
+                    {selectedIndex === index && <ArrowRight className="w-4 h-4 text-primary shrink-0" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+    </div >
   );
 }

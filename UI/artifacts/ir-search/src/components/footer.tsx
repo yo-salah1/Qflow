@@ -87,10 +87,10 @@ export function Footer() {
       {/* Abstract Background Elements */}
       <div className="absolute top-0 left-1/4 w-[300px] h-[300px] bg-primary/3 rounded-full blur-[80px] -z-10 pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-[250px] h-[250px] bg-blue-400/3 rounded-full blur-[60px] -z-10 pointer-events-none" />
-      
+
       {/* Animated gradient line at top */}
       <div className="h-[2px] w-full bg-gradient-to-r from-primary via-cyan-500 to-blue-500 animate-gradient-x shadow-lg shadow-primary/20" />
-      
+
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-col md:flex-row items-start justify-between gap-8">
           {/* Brand Section */}
@@ -102,7 +102,7 @@ export function Footer() {
             className="flex-1 space-y-3"
           >
             <div className="flex items-center gap-2 group cursor-pointer">
-              <motion.div 
+              <motion.div
                 whileHover={{ rotate: 360, scale: 1.1 }}
                 transition={{ duration: 0.5 }}
                 className="w-8 h-8 bg-gradient-to-br from-primary to-cyan-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary/30"
@@ -174,6 +174,20 @@ export function Footer() {
                   MZ
                 </div>
                 <span className="group-hover:text-primary transition-colors">Mostafa Zahran</span>
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+              </motion.a>
+              <motion.a
+                href="https://www.linkedin.com/in/yousif-salah/"
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ x: 4 }}
+                transition={{ duration: 0.2 }}
+                className="group flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-all"
+              >
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
+                  YS
+                </div>
+                <span className="group-hover:text-primary transition-colors">Yousif Salah</span>
                 <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
               </motion.a>
               <motion.a

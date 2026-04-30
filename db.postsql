@@ -1,0 +1,31 @@
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    url TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE inverted_index (
+    id SERIAL PRIMARY KEY,
+    term TEXT NOT NULL,
+    doc_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    frequency INTEGER NOT NULL,
+    positions INTEGER[] NOT NULL
+);
+
+create table search_logs (
+  id serial primary key,
+  query text not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Enable pgvector extension if not already enabled
+-- CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE document_embeddings (
+    id SERIAL PRIMARY KEY,
+    doc_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    embedding VECTOR(384), -- Dimension for sentence-transformers model
+    created_at TIMESTAMP DEFAULT NOW()
+);

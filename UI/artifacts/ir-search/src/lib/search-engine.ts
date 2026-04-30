@@ -9,6 +9,12 @@ export interface SearchResult {
   highlighted_snippet: string | null;
 }
 
+export interface EnhancedSearchResponse {
+  results: SearchResult[];
+  did_you_mean: string | null;
+  search_mode: string;
+}
+
 export interface InvertedIndex {
   [term: string]: {
     [docId: string]: number; // term frequency in this doc
@@ -16,8 +22,8 @@ export interface InvertedIndex {
 }
 
 const STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in", 
-  "into", "is", "it", "no", "not", "of", "on", "or", "such", "that", "the", 
+  "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in",
+  "into", "is", "it", "no", "not", "of", "on", "or", "such", "that", "the",
   "their", "then", "there", "these", "they", "this", "to", "was", "will", "with",
   "how", "what", "where", "why", "when", "who"
 ]);
@@ -34,12 +40,12 @@ export function tokenize(text: string): string[] {
     .filter(token => token.length > 0 && !STOP_WORDS.has(token));
 }
 
-// 2. API-based Search
-export async function search(query: string): Promise<SearchResult[]> {
-  if (!query.trim()) return [];
+// 2. API-based Search (returns enhanced response)
+export async function search(query: string): Promise<EnhancedSearchResponse> {
+  if (!query.trim()) return { results: [], did_you_mean: null, search_mode: "none" };
 
   try {
-    // Use hybrid search endpoint (cache first, then database)
+    // Use hybrid search endpoint (cache → TF-IDF → semantic)
     const response = await fetch(
       `${API_BASE_URL}/api/search-hybrid?q=${encodeURIComponent(query)}&limit=10&offset=0`,
       {
@@ -55,29 +61,32 @@ export async function search(query: string): Promise<SearchResult[]> {
 
     const data = await response.json();
 
-    // Transform API response to SearchResult format
-    return data.map((item: any) => ({
-      doc_id: item.doc_id,
-      title: item.title,
-      url: item.url,
-      score: item.score,
-      snippet: item.snippet || item.highlighted_snippet || "",
-      highlighted_snippet: item.highlighted_snippet || null
-    }));
+    // Handle enhanced response format
+    return {
+      results: (data.results || []).map((item: any) => ({
+        doc_id: item.doc_id,
+        title: item.title,
+        url: item.url,
+        score: item.score,
+        snippet: item.snippet || item.highlighted_snippet || "",
+        highlighted_snippet: item.highlighted_snippet || null
+      })),
+      did_you_mean: data.did_you_mean || null,
+      search_mode: data.search_mode || "hybrid"
+    };
   } catch (error) {
     console.error("Search API error:", error);
-    // Fallback to empty results on error
-    return [];
+    return { results: [], did_you_mean: null, search_mode: "error" };
   }
 }
 
 export async function getSuggestions(query: string): Promise<string[]> {
   if (!query.trim()) return [];
-  
+
   try {
     // Use search API to get suggestions from titles
-    const results = await search(query);
-    return results.slice(0, 5).map(r => r.title);
+    const response = await search(query);
+    return response.results.slice(0, 5).map(r => r.title);
   } catch (error) {
     console.error("Suggestions API error:", error);
     return [];
@@ -97,11 +106,9 @@ export async function getJourneyData() {
     }
     const stats = await statsResponse.json();
 
-    // Get documents for journey visualization
-    // Note: This would need a documents endpoint, for now return mock data structure
     return {
-      corpus: [], // Would need a /api/documents endpoint
-      index: {}, // Would need a /api/index endpoint
+      corpus: [],
+      index: {},
       totalDocs: stats.total_documents || 0
     };
   } catch (error) {
@@ -111,5 +118,29 @@ export async function getJourneyData() {
       index: {},
       totalDocs: 0
     };
+  }
+}
+
+export interface SearchKeywordStat {
+  query: string;
+  count: number;
+}
+
+export async function getTopSearchKeywords(limit: number = 10): Promise<SearchKeywordStat[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/search-keywords/top?limit=${limit}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch top search keywords');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Top search keywords API error:', error);
+    return [];
   }
 }

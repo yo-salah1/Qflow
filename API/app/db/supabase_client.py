@@ -1,6 +1,7 @@
 from supabase import create_client, Client
 from app.core.config import settings
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,70 @@ class SupabaseClient:
         except Exception as e:
             logger.error(f"Error getting term frequency for '{term}': {e}")
             return 0
+
+    def log_search_query(self, query: str) -> bool:
+        """Log a search query to the search_logs table."""
+        try:
+            self.client.table('search_logs').insert({
+                'query': query,
+                'created_at': datetime.utcnow().isoformat()
+            }).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Error logging search query '{query}': {e}")
+            return False
+
+    def get_top_search_queries(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Return top search queries aggregated by count."""
+        try:
+            response = self.client.table('search_logs').select('query').execute()
+            data = response.data if response.data else []
+            counts: Dict[str, int] = {}
+            for row in data:
+                query = row.get('query')
+                if not query:
+                    continue
+                counts[query] = counts.get(query, 0) + 1
+            sorted_queries = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+            return [{'query': query, 'count': count} for query, count in sorted_queries[:limit]]
+        except Exception as e:
+            logger.error(f"Error fetching top search queries: {e}")
+            return []
+
+    def insert_document_embedding(self, doc_id: int, embedding: List[float]) -> bool:
+        """Insert a document embedding."""
+        try:
+            self.client.table('document_embeddings').insert({
+                'doc_id': doc_id,
+                'embedding': embedding
+            }).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Error inserting embedding for doc {doc_id}: {e}")
+            return False
+
+    def get_document_embedding(self, doc_id: int) -> Optional[List[float]]:
+        """Retrieve embedding for a document."""
+        try:
+            response = self.client.table('document_embeddings').select('embedding').eq('doc_id', doc_id).execute()
+            if response.data:
+                return response.data[0]['embedding']
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving embedding for doc {doc_id}: {e}")
+            return None
+
+    def semantic_search(self, query_embedding: List[float], limit: int = 10) -> List[Dict[str, Any]]:
+        """Perform semantic search using cosine similarity."""
+        try:
+            # Note: This assumes pgvector is enabled and the table has vector column
+            # For Supabase, you might need to use RPC or direct SQL
+            # For now, return empty as placeholder
+            # In production, implement with proper vector search
+            return []
+        except Exception as e:
+            logger.error(f"Error performing semantic search: {e}")
+            return []
 
 
 # Global Supabase client instance

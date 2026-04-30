@@ -26,13 +26,18 @@ class TFIDFRanker:
         Returns:
             TF score (raw frequency)
         """
-        # Get index entries for the term
-        entries = supabase_client.get_index_entries(term)
+        # Prefer local index data for fast lookup
+        if indexer.inverted_index and term in indexer.inverted_index:
+            positions = indexer.inverted_index[term].get(doc_id)
+            if positions is not None:
+                return float(len(positions))
+            return 0.0
         
+        # Fallback to database lookup
+        entries = supabase_client.get_index_entries(term)
         for entry in entries:
             if entry['doc_id'] == doc_id:
                 return float(entry['frequency'])
-        
         return 0.0
     
     def compute_idf(self, term: str) -> float:
@@ -45,23 +50,25 @@ class TFIDFRanker:
         Returns:
             IDF score: log(N / df) where N is total docs, df is doc frequency
         """
-        # Get total number of documents
-        if self.total_documents == 0:
+        # Use local document count if available
+        if len(indexer.document_lengths) > 0:
+            self.total_documents = len(indexer.document_lengths)
+        elif self.total_documents == 0:
             self.total_documents = supabase_client.get_document_count()
         
         if self.total_documents == 0:
             return 0.0
         
-        # Get document frequency (number of docs containing the term)
-        df = supabase_client.get_term_frequency(term)
+        # Use local index document frequency if available
+        if indexer.inverted_index and term in indexer.inverted_index:
+            df = len(indexer.inverted_index[term])
+        else:
+            df = supabase_client.get_term_frequency(term)
         
         if df == 0:
             return 0.0
         
-        # IDF = log(N / df)
-        idf = math.log(self.total_documents / df)
-        
-        return idf
+        return math.log(self.total_documents / df)
     
     def compute_tf_idf(self, term: str, doc_id: int) -> float:
         """
@@ -75,8 +82,9 @@ class TFIDFRanker:
             TF-IDF score
         """
         tf = self.compute_tf(term, doc_id)
+        if tf == 0.0:
+            return 0.0
         idf = self.compute_idf(term)
-        
         return tf * idf
     
     def rank_documents(
@@ -90,28 +98,34 @@ class TFIDFRanker:
         Args:
             query_terms: List of preprocessed query terms
             candidate_doc_ids: Set of candidate document IDs to rank
-            
+        
         Returns:
             List of (doc_id, score) tuples sorted by score descending
         """
         logger.info(f"Ranking {len(candidate_doc_ids)} documents for {len(query_terms)} query terms")
         
-        # Update total documents count
-        self.total_documents = supabase_client.get_document_count()
+        if len(indexer.document_lengths) > 0:
+            self.total_documents = len(indexer.document_lengths)
+        elif self.total_documents == 0:
+            self.total_documents = supabase_client.get_document_count()
+        
+        # Precompute IDF values once per query term
+        idf_values: Dict[str, float] = {}
+        for term in query_terms:
+            idf_values[term] = self.compute_idf(term)
         
         # Calculate scores for each document
         doc_scores: Dict[int, float] = {}
-        
         for doc_id in candidate_doc_ids:
             score = 0.0
             for term in query_terms:
-                tf_idf = self.compute_tf_idf(term, doc_id)
-                score += tf_idf
+                if idf_values[term] == 0.0:
+                    continue
+                tf = self.compute_tf(term, doc_id)
+                score += tf * idf_values[term]
             doc_scores[doc_id] = score
         
-        # Sort by score descending
         ranked_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
-        
         logger.info(f"Ranking completed. Top score: {ranked_docs[0][1] if ranked_docs else 0}")
         return ranked_docs
     
@@ -126,26 +140,16 @@ class TFIDFRanker:
         Returns:
             Normalized TF-IDF score
         """
-        # Get raw TF
-        entries = supabase_client.get_index_entries(term)
-        tf = 0.0
-        doc_length = 0
+        tf = self.compute_tf(term, doc_id)
+        if tf == 0.0:
+            return 0.0
         
-        for entry in entries:
-            if entry['doc_id'] == doc_id:
-                tf = float(entry['frequency'])
-                doc_length = len(entry['positions'])
-                break
-        
+        doc_length = indexer.get_document_length(doc_id)
         if doc_length == 0:
             return 0.0
         
-        # Normalize TF by document length
         normalized_tf = tf / doc_length
-        
-        # Get IDF
         idf = self.compute_idf(term)
-        
         return normalized_tf * idf
     
     def rank_documents_normalized(
@@ -165,22 +169,19 @@ class TFIDFRanker:
         """
         logger.info(f"Ranking {len(candidate_doc_ids)} documents using normalized TF-IDF")
         
-        # Update total documents count
-        self.total_documents = supabase_client.get_document_count()
+        if len(indexer.document_lengths) > 0:
+            self.total_documents = len(indexer.document_lengths)
+        elif self.total_documents == 0:
+            self.total_documents = supabase_client.get_document_count()
         
-        # Calculate scores for each document
         doc_scores: Dict[int, float] = {}
-        
         for doc_id in candidate_doc_ids:
             score = 0.0
             for term in query_terms:
-                normalized_tf_idf = self.compute_normalized_tf_idf(term, doc_id)
-                score += normalized_tf_idf
+                score += self.compute_normalized_tf_idf(term, doc_id)
             doc_scores[doc_id] = score
         
-        # Sort by score descending
         ranked_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
-        
         return ranked_docs
     
     def get_top_k_documents(

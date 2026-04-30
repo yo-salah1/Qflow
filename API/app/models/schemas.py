@@ -52,12 +52,25 @@ class SearchResult(BaseModel):
     highlighted_snippet: Optional[str] = None
 
 
+class SearchKeywordStat(BaseModel):
+    """Most searched keyword statistics."""
+    query: str
+    count: int
+
+
 class SearchResponse(BaseModel):
     """Search response schema."""
     results: List[SearchResult]
     total: int
     limit: int
     offset: int
+
+
+class EnhancedSearchResponse(BaseModel):
+    """Enhanced search response with search mode."""
+    results: List[SearchResult]
+    did_you_mean: Optional[str] = None
+    search_mode: str = "hybrid"
 
 
 class HealthResponse(BaseModel):
