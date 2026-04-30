@@ -74,6 +74,111 @@ paths:
           description: Bad request
         "500":
           description: Internal server error
+  /search-hybrid:
+    get:
+      operationId: searchHybrid
+      tags: [search]
+      summary: Hybrid search
+      description: "Search pipeline: cache first → database TF-IDF → semantic fallback"
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Search query
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: Number of results to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        "200":
+          description: Enhanced search results with search mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnhancedSearchResponse"
+        "400":
+          description: Bad request
+        "500":
+          description: Internal server error
+  /search-semantic:
+    get:
+      operationId: searchSemantic
+      tags: [search]
+      summary: Semantic search
+      description: Embedding-based search that understands meaning (e.g. "AI" finds "Artificial Intelligence")
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Search query
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: Number of results to return
+      responses:
+        "200":
+          description: Semantic search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+        "400":
+          description: Bad request
+        "500":
+          description: Internal server error
+  /search-keywords/top:
+    get:
+      operationId: getTopSearchKeywords
+      tags: [search]
+      summary: Top search keywords
+      description: Return the most frequently searched queries
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Number of top queries to return
+      responses:
+        "200":
+          description: Top search keywords
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchKeywordStat"
+        "500":
+          description: Internal server error
   /crawl/start:
     post:
       operationId: startCrawler
@@ -177,6 +282,31 @@ components:
         - total_documents
         - total_terms
         - max_documents
+    EnhancedSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
+        did_you_mean:
+          type: string
+          nullable: true
+        search_mode:
+          type: string
+      required:
+        - results
+        - search_mode
+    SearchKeywordStat:
+      type: object
+      properties:
+        query:
+          type: string
+        count:
+          type: integer
+      required:
+        - query
+        - count
     RebuildResponse:
       type: object
       properties:

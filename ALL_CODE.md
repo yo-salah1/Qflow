@@ -9,9 +9,10 @@ This file contains the relevant project source code extracted into a single docu
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 import logging
-from app.models.schemas import HealthResponse, SearchResponse, CrawlResponse, SearchResult, SearchKeywordStat
+from app.models.schemas import HealthResponse, SearchResponse, CrawlResponse, SearchResult, SearchKeywordStat, EnhancedSearchResponse
 from app.services.search import search_service
 from app.services.hybrid_search import hybrid_search_service
+from app.services.semantic_search import semantic_search_service
 from app.services.crawler import wikipedia_crawler
 from app.services.indexer import indexer
 from app.db.supabase_client import supabase_client
@@ -61,28 +62,38 @@ async def search(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.get("/search-hybrid", response_model=List[SearchResult])
+@router.get("/search-hybrid", response_model=EnhancedSearchResponse)
 async def hybrid_search(
     q: str = Query(..., min_length=1, description="Search query"),
     limit: int = Query(default=10, ge=1, le=settings.MAX_SEARCH_LIMIT, description="Number of results"),
     offset: int = Query(default=0, ge=0, description="Pagination offset")
 ):
-    """
-    Hybrid search: checks document cache first, falls back to database if needed.
-    
-    This endpoint is faster for frequently searched terms as it searches
-    within the local cache first before querying the database.
-    """
+    """Enhanced hybrid search: cache → database TF-IDF → semantic fallback."""
     try:
         if not q or not q.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
-        
         supabase_client.log_search_query(q)
-        results = hybrid_search_service.hybrid_search(query=q, limit=limit, offset=offset)
-        return results
-        
+        response = hybrid_search_service.hybrid_search(query=q, limit=limit, offset=offset)
+        return response
     except Exception as e:
         logger.error(f"Hybrid search error: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.get("/search-semantic", response_model=List[SearchResult])
+async def semantic_search(
+    q: str = Query(..., min_length=1, description="Search query"),
+    limit: int = Query(default=10, ge=1, le=settings.MAX_SEARCH_LIMIT, description="Number of results")
+):
+    """Semantic search using embeddings to find conceptually similar content."""
+    try:
+        if not q or not q.strip():
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        supabase_client.log_search_query(q)
+        results = semantic_search_service.semantic_search(query=q, limit=limit)
+        return results
+    except Exception as e:
+        logger.error(f"Semantic search error: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
@@ -875,6 +886,13 @@ class SearchResponse(BaseModel):
     offset: int
 
 
+class EnhancedSearchResponse(BaseModel):
+    """Enhanced search response with search mode indicator."""
+    results: List[SearchResult]
+    did_you_mean: Optional[str] = None
+    search_mode: str = "hybrid"
+
+
 class HealthResponse(BaseModel):
     """Health check response schema."""
     status: str
@@ -896,38 +914,222 @@ class SearchRequest(BaseModel):
 
 ---
 
-## File: UI/artifacts/ir-search/src/lib/search-engine.ts
-```typescript
-import { Document } from "./mock-data";
+## File: API/app/services/spell_correction.py
+```python
+"""Spell Correction Service - corrects misspelled search terms using indexed vocabulary."""
+import re, difflib, logging
+from typing import List, Optional
 
-export interface SearchResult {
-  doc_id: number;
-  title: string;
-  url: string | null;
-  score: number;
-  snippet: string | null;
-  highlighted_snippet: string | null;
-}
+logger = logging.getLogger(__name__)
 
-export interface InvertedIndex {
-  [term: string]: {
-    [docId: string]: number; // term frequency in this doc
-  };
-}
+class SpellCorrector:
+    def __init__(self):
+        self._vocabulary: set = set()
+        self._loaded = False
 
-const STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in",
-  "into", "is", "it", "no", "not", "of", "on", "or", "such", "that", "the",
-  "their", "then", "there", "these", "they", "this", "to", "was", "will", "with",
-  "how", "what", "where", "why", "when", "who"
-]);
+    def _ensure_vocabulary(self):
+        if self._loaded:
+            return
+        from app.services.document_cache import document_cache
+        for doc in document_cache.documents.values():
+            self._vocabulary.update(re.findall(r'[a-zA-Z]{3,}', doc.get('title', '').lower()))
+            self._vocabulary.update(re.findall(r'[a-zA-Z]{3,}', doc.get('content', '')[:300].lower()))
+        from app.services.indexer import indexer
+        for term in indexer.inverted_index.keys():
+            if len(term) >= 3:
+                self._vocabulary.add(term)
+        self._loaded = True
 
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    def correct_query(self, raw_query: str) -> Optional[str]:
+        self._ensure_vocabulary()
+        if not self._vocabulary:
+            return None
+        words = raw_query.strip().split()
+        corrected_words, was_corrected = [], False
+        for word in words:
+            clean = re.sub(r'[^a-zA-Z]', '', word).lower()
+            if not clean or len(clean) <= 2 or clean in self._vocabulary:
+                corrected_words.append(word)
+            else:
+                matches = difflib.get_close_matches(clean, list(self._vocabulary), n=1, cutoff=0.6)
+                if matches:
+                    corrected_words.append(matches[0])
+                    was_corrected = True
+                else:
+                    corrected_words.append(word)
+        if was_corrected:
+            result = ' '.join(corrected_words)
+            logger.info(f"Spell correction: '{raw_query}' -> '{result}'")
+            return result
+        return None
 
-// 1. Tokenization & Processing
-export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^
-`
+    def reload_vocabulary(self):
+        self._vocabulary.clear()
+        self._loaded = False
+        self._ensure_vocabulary()
+
+spell_corrector = SpellCorrector()
+```
+
+---
+
+## File: API/app/services/hybrid_search.py
+```python
+"""Hybrid Search: cache first → database TF-IDF → semantic fallback."""
+import logging
+from typing import List, Dict, Set, Tuple
+from app.services.document_cache import document_cache
+from app.services.indexer import indexer, TextPreprocessor
+from app.models.schemas import SearchResult, EnhancedSearchResponse
+
+logger = logging.getLogger(__name__)
+
+class HybridSearchService:
+    def __init__(self):
+        self.preprocessor = TextPreprocessor()
+        self.cache_index: Dict[int, Set[str]] = {}
+        self._load_cache_index()
+
+    def _load_cache_index(self):
+        self.cache_index.clear()
+        for doc_id, doc in document_cache.documents.items():
+            self.cache_index[doc_id] = set(self.preprocessor.preprocess(
+                doc.get('title', '') + ' ' + doc.get('content', '')))
+
+    def _ensure_cache_index(self):
+        if len(self.cache_index) != len(document_cache.documents):
+            self._load_cache_index()
+
+    def search_in_cache(self, query: str, limit: int = 10) -> List[SearchResult]:
+        query_terms = self.preprocessor.preprocess(query)
+        if not query_terms:
+            return []
+        self._ensure_cache_index()
+        query_set = set(query_terms)
+        scored = []
+        for doc in document_cache.documents.values():
+            doc_id = doc.get('id')
+            if doc_id is None:
+                continue
+            doc_set = self.cache_index.get(doc_id, set())
+            matches = len(query_set.intersection(doc_set))
+            if matches == 0:
+                continue
+            score = matches / len(doc_set) if doc_set else 0
+            title_terms = set(self.preprocessor.preprocess(doc.get('title', '')))
+            score += len(query_set.intersection(title_terms)) * 0.3
+            if score >= 0.1:
+                scored.append((doc_id, doc.get('title', ''), doc.get('content', ''), score))
+        scored.sort(key=lambda x: x[3], reverse=True)
+        results = []
+        for doc_id, title, content, score in scored[:limit]:
+            snippet = content[:200] + '...' if len(content) > 200 else content
+            results.append(SearchResult(doc_id=doc_id, title=title,
+                url=document_cache.documents.get(doc_id, {}).get('url'),
+                score=round(min(score, 1.0), 4), snippet=snippet, highlighted_snippet=snippet))
+        return results
+
+    def hybrid_search(self, query: str, limit: int = 10, offset: int = 0) -> EnhancedSearchResponse:
+        cache_results = self.search_in_cache(query, limit=limit)
+        if cache_results:
+            return EnhancedSearchResponse(results=cache_results, search_mode="cache")
+        from app.services.search import search_service
+        db_results = search_service.search(query, limit, offset)
+        if db_results:
+            return EnhancedSearchResponse(results=db_results, search_mode="database")
+        try:
+            from app.services.semantic_search import semantic_search_service
+            sem_results = semantic_search_service.semantic_search(query, limit=limit)
+            if sem_results:
+                return EnhancedSearchResponse(results=sem_results, search_mode="semantic")
+        except Exception as e:
+            logger.error(f"Semantic search failed: {e}")
+        return EnhancedSearchResponse(results=[], search_mode="none")
+
+hybrid_search_service = HybridSearchService()
+```
+
+---
+
+## File: API/app/services/semantic_search.py
+```python
+"""Semantic Search Service - embedding-based meaning search."""
+import logging
+from typing import List, Dict
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+class SemanticSearchService:
+    def __init__(self):
+        self._model = None
+        self._title_embeddings: Dict[int, np.ndarray] = {}
+        self._title_map: Dict[int, dict] = {}
+        self._titles_loaded = False
+
+    def _ensure_model(self):
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer('all-MiniLM-L6-v2')
+
+    def _ensure_title_embeddings(self):
+        if self._titles_loaded:
+            return
+        from app.services.document_cache import document_cache
+        docs = document_cache.documents
+        if not docs:
+            return
+        self._ensure_model()
+        titles, doc_ids = [], []
+        for doc_id, doc in docs.items():
+            title = doc.get('title', '')
+            if title:
+                titles.append(title)
+                doc_ids.append(doc_id)
+                self._title_map[doc_id] = doc
+        if titles:
+            embeddings = self._model.encode(titles, batch_size=64, show_progress_bar=False)
+            for i, doc_id in enumerate(doc_ids):
+                self._title_embeddings[doc_id] = embeddings[i]
+        self._titles_loaded = True
+
+    def encode_text(self, text: str) -> List[float]:
+        self._ensure_model()
+        return self._model.encode(text).tolist()
+
+    def semantic_search(self, query: str, limit: int = 10) -> List[dict]:
+        from app.models.schemas import SearchResult
+        self._ensure_title_embeddings()
+        if not self._title_embeddings:
+            return []
+        self._ensure_model()
+        query_emb = self._model.encode(query)
+        similarities = []
+        for doc_id, title_emb in self._title_embeddings.items():
+            sim = float(np.dot(query_emb, title_emb) /
+                        (np.linalg.norm(query_emb) * np.linalg.norm(title_emb) + 1e-8))
+            similarities.append((doc_id, sim))
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        results = []
+        for doc_id, score in similarities[:limit]:
+            if score < 0.25:
+                continue
+            doc = self._title_map.get(doc_id)
+            if doc:
+                content = doc.get('content', '')
+                snippet = content[:200] + '...' if len(content) > 200 else content
+                results.append(SearchResult(doc_id=doc_id, title=doc['title'],
+                    url=doc.get('url'), score=round(score, 4),
+                    snippet=snippet, highlighted_snippet=snippet))
+        return results
+
+    def reload_embeddings(self):
+        self._title_embeddings.clear()
+        self._title_map.clear()
+        self._titles_loaded = False
+
+semantic_search_service = SemanticSearchService()
+```
+
+---
+

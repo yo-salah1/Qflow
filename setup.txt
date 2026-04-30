@@ -7,3 +7,21 @@ cp .env.example .env
 
 
 https://supabase.com/dashboard/project/aeyhzntnsrfpkblmfmjb/sql/be5f973a-51c0-4c30-a927-c544a1ccc03b
+
+
+python scripts/run_crawler.py
+python scripts/populate_cache.py
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+
+
+# 1. ادخل فولدر الفرونت إند
+cd UI/artifacts/ir-search
+
+pnpm install
+
+# 2. شغل الموقع
+pnpm run dev
+
+
+chrome://flags/#unsafely-treat-insecure-origin-as-secure

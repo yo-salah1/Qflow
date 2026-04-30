@@ -252,9 +252,10 @@ Check Cache (document_cache.json)
 **Purpose**: Intelligent two-tier search system
 
 **Logic**:
-1. **Search in Cache First** - Fast local search in 1,000 cached documents
+1. **Search in Cache First** - Fast local search in cached documents
 2. **If Cache Has Results** → Return ONLY cache results (no DB query!)
 3. **If Cache Has ZERO Results** → Search database using inverted index
+4. **If DB Has ZERO Results** → Semantic search (embedding-based meaning search)
 
 **Benefits**:
 - Common queries: 10-50ms (cache only)
@@ -876,8 +877,8 @@ This ensures that all search results are genuine, accurate, and verifiable again
 
 #### 🚀 Missing Features
 - **No Search Autocomplete**: Query suggestions not implemented
-- **No Search History**: User queries are not stored or analyzed
-- **No User Analytics**: No tracking of popular searches or user behavior
+- **No Search History**: User queries are logged via `search_logs` table for trending analysis
+- **Limited User Analytics**: No user accounts or personalized tracking
 - **No Personalization**: No user accounts or saved search preferences
 - **No Result Pagination**: Limited result display without infinite scroll
 
@@ -913,6 +914,6 @@ This ensures that all search results are genuine, accurate, and verifiable again
 [![GitHub stars](https://img.shields.io/github/stars/username/QueryFlow?style=social)](https://github.com/username/QueryFlow)
 [![GitHub forks](https://img.shields.io/github/forks/username/QueryFlow?style=social)](https://github.com/username/QueryFlow)
 
-**Last Updated**: April 28, 2024 | **Version**: 1.0.0
+**Last Updated**: April 30, 2026 | **Version**: 1.0.0
 
 </div>#
